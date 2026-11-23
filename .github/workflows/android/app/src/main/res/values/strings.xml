@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Inventarios Construrama Alce</string>
+    <string name="title_activity_main">Inventarios Construrama Alce</string>
+    <string name="package_name">com.construrama.alce.inventarios</string>
+    <string name="custom_url_scheme">com.construrama.alce.inventarios</string>
+</resources>

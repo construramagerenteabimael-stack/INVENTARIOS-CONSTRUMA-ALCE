@@ -1,0 +1,6 @@
+{
+  "name": "Inventarios Construrama Alce",
+  "description": "Aplicación móvil PWA para toma de inventarios físicos en ferreterías con escaneo de códigos de barra, asistente de visión con IA y exportación a Excel.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

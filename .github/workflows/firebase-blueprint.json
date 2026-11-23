@@ -1,0 +1,617 @@
+{
+  "entities": {
+    "UserPrivateProfile": {
+      "title": "UserPrivateProfile",
+      "description": "Private user account and preferences profile isolated by userId.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "counterName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "InventoryWorkspace": {
+      "title": "InventoryWorkspace",
+      "description": "Cloud-synced inventory workspace shared across user devices (mobile and desktop).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "activeZoneId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "catalogVersion": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "stockVersion": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "catalogCount": {
+          "type": "number"
+        },
+        "stockCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "name", "createdAt", "updatedAt"]
+    },
+    "ZoneDoc": {
+      "title": "ZoneDoc",
+      "description": "Physical store or warehouse counting zone.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "type": {
+          "type": "string",
+          "enum": ["bodega", "autoservicio", "general"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pendiente", "en_conteo", "terminada"]
+        },
+        "startTime": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "endTime": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "name", "status", "createdAt", "updatedAt"]
+    },
+    "CaptureDoc": {
+      "title": "CaptureDoc",
+      "description": "Individual product count capture recorded on mobile or desktop.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "zoneId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "zoneName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "barcode": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "counterName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "isRecount": {
+          "type": "boolean"
+        },
+        "deviceName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "zoneId",
+        "zoneName",
+        "code",
+        "description",
+        "unit",
+        "quantity",
+        "timestamp",
+        "counterName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UnidentifiedDoc": {
+      "title": "UnidentifiedDoc",
+      "description": "Unidentified article pending catalog matching.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "zoneId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "zoneName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "photoBase64": {
+          "type": "string",
+          "maxLength": 450000
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "counterName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "resolvedCode": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "zoneId",
+        "zoneName",
+        "note",
+        "quantity",
+        "unit",
+        "timestamp",
+        "counterName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RecountDoc": {
+      "title": "RecountDoc",
+      "description": "Product flagged for physical recount.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "markedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "resolved": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "code", "markedAt", "createdAt", "updatedAt"]
+    },
+    "CatalogChunkDoc": {
+      "title": "CatalogChunkDoc",
+      "description": "Chunked batch of products or system stock (up to 1000 items per document) to stay within Firestore 1MB limit.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["products", "systemStock"]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "index": {
+          "type": "number"
+        },
+        "totalChunks": {
+          "type": "number"
+        },
+        "items": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "kind",
+        "version",
+        "index",
+        "totalChunks",
+        "items",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HistorySessionDoc": {
+      "title": "HistorySessionDoc",
+      "description": "Archived count batch summary metadata for historical audits and cumulative progress.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "createdAtIso": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "closedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "closedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "totalCapturesCount": {
+          "type": "number"
+        },
+        "totalPiecesCounted": {
+          "type": "number"
+        },
+        "totalCountedProducts": {
+          "type": "number"
+        },
+        "totalExactProducts": {
+          "type": "number"
+        },
+        "totalFaltantesProducts": {
+          "type": "number"
+        },
+        "totalSobrantesProducts": {
+          "type": "number"
+        },
+        "totalFaltantesPieces": {
+          "type": "number"
+        },
+        "totalSobrantesPieces": {
+          "type": "number"
+        },
+        "totalFaltantesValue": {
+          "type": "number"
+        },
+        "totalSobrantesValue": {
+          "type": "number"
+        },
+        "netFinancialImpact": {
+          "type": "number"
+        },
+        "accuracyRatePct": {
+          "type": "number"
+        },
+        "snapshotChunksCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "name",
+        "closedAt",
+        "closedBy",
+        "totalCapturesCount",
+        "totalPiecesCounted",
+        "totalCountedProducts",
+        "totalExactProducts",
+        "totalFaltantesProducts",
+        "totalSobrantesProducts",
+        "totalFaltantesPieces",
+        "totalSobrantesPieces",
+        "totalFaltantesValue",
+        "totalSobrantesValue",
+        "netFinancialImpact",
+        "accuracyRatePct",
+        "snapshotChunksCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HistorySessionChunkDoc": {
+      "title": "HistorySessionChunkDoc",
+      "description": "Chunked snapshot arrays (captures, summaries, systemStock) belonging to an archived history session.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["captures", "summaries", "systemStock"]
+        },
+        "index": {
+          "type": "number"
+        },
+        "items": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "sessionId",
+        "kind",
+        "index",
+        "items",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/private/profile": {
+      "schema": { "$ref": "#/entities/UserPrivateProfile" },
+      "description": "Isolated private user profile with email and counter identity."
+    },
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/InventoryWorkspace" },
+      "description": "Root inventory workspace owned by a verified user and shared across their devices."
+    },
+    "/workspaces/{workspaceId}/zones/{zoneId}": {
+      "schema": { "$ref": "#/entities/ZoneDoc" },
+      "description": "Counting zones synced in real time across devices."
+    },
+    "/workspaces/{workspaceId}/captures/{captureId}": {
+      "schema": { "$ref": "#/entities/CaptureDoc" },
+      "description": "Real-time count captures synced across mobile and desktop."
+    },
+    "/workspaces/{workspaceId}/unidentified/{itemId}": {
+      "schema": { "$ref": "#/entities/UnidentifiedDoc" },
+      "description": "Unidentified items captured for later catalog resolution."
+    },
+    "/workspaces/{workspaceId}/recounts/{recountId}": {
+      "schema": { "$ref": "#/entities/RecountDoc" },
+      "description": "Products marked for recount."
+    },
+    "/workspaces/{workspaceId}/catalogChunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/CatalogChunkDoc" },
+      "description": "Chunked product catalog and system stock batches."
+    },
+    "/workspaces/{workspaceId}/historySessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/HistorySessionDoc" },
+      "description": "Archived count batches with cumulative audit metrics."
+    },
+    "/workspaces/{workspaceId}/historySessionChunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/HistorySessionChunkDoc" },
+      "description": "Chunked snapshots for archived history sessions."
+    }
+  }
+}
