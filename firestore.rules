@@ -1,0 +1,448 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==================== GLOBAL HELPERS ====================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isUserOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isWorkspaceOwner(workspaceId) {
+      return isVerified()
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId))
+        && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
+    }
+
+    function isOptString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isOptBool(data, key) {
+      return !(key in data) || (data[key] is bool);
+    }
+
+    function isOptNumber(data, key) {
+      return !(key in data) || (data[key] is number);
+    }
+
+    // ==================== VALIDATION BLUEPRINTS ====================
+
+    function isValidUserPrivateProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'counterName', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == request.auth.uid && isValidId(data.uid)
+        && data.email is string && data.email.size() <= 256
+        && isOptString(data, 'displayName', 120)
+        && isOptString(data, 'counterName', 80)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidInventoryWorkspace(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'name', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'activeZoneId',
+          'catalogVersion', 'stockVersion', 'catalogCount', 'stockCount',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && isOptString(data, 'activeZoneId', 128)
+        && isOptString(data, 'catalogVersion', 64)
+        && isOptString(data, 'stockVersion', 64)
+        && isOptNumber(data, 'catalogCount')
+        && isOptNumber(data, 'stockCount')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidZoneDoc(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'name', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'type', 'status',
+          'startTime', 'endTime', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 150
+        && (!( 'type' in data ) || (data.type is string && data.type in ['bodega', 'autoservicio', 'general']))
+        && data.status is string && data.status in ['pendiente', 'en_conteo', 'terminada']
+        && isOptString(data, 'startTime', 64)
+        && isOptString(data, 'endTime', 64)
+        && isOptString(data, 'notes', 500)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCaptureDoc(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'zoneId', 'zoneName', 'code',
+          'description', 'unit', 'quantity', 'timestamp', 'counterName',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'zoneId', 'zoneName', 'code', 'barcode',
+          'description', 'unit', 'quantity', 'timestamp', 'counterName',
+          'isRecount', 'deviceName', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.zoneId is string && data.zoneId.size() >= 1 && data.zoneId.size() <= 128
+        && data.zoneName is string && data.zoneName.size() >= 1 && data.zoneName.size() <= 150
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 128
+        && isOptString(data, 'barcode', 128)
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 300
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 40
+        && data.quantity is number && data.quantity >= 0
+        && data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 64
+        && data.counterName is string && data.counterName.size() >= 1 && data.counterName.size() <= 80
+        && isOptBool(data, 'isRecount')
+        && isOptString(data, 'deviceName', 80)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUnidentifiedDoc(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'zoneId', 'zoneName', 'note',
+          'quantity', 'unit', 'timestamp', 'counterName',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'zoneId', 'zoneName', 'photoBase64', 'note',
+          'quantity', 'unit', 'timestamp', 'counterName', 'resolvedCode',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.zoneId is string && data.zoneId.size() >= 1 && data.zoneId.size() <= 128
+        && data.zoneName is string && data.zoneName.size() >= 1 && data.zoneName.size() <= 150
+        && isOptString(data, 'photoBase64', 450000)
+        && data.note is string && data.note.size() >= 1 && data.note.size() <= 500
+        && data.quantity is number && data.quantity >= 0
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 40
+        && data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 64
+        && data.counterName is string && data.counterName.size() >= 1 && data.counterName.size() <= 80
+        && isOptString(data, 'resolvedCode', 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRecountDoc(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'code', 'markedAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'code', 'markedAt', 'reason', 'resolved', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 128
+        && data.markedAt is string && data.markedAt.size() >= 1 && data.markedAt.size() <= 64
+        && isOptString(data, 'reason', 300)
+        && isOptBool(data, 'resolved')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCatalogChunkDoc(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'kind', 'version', 'index', 'totalChunks', 'items',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'kind', 'version', 'index', 'totalChunks', 'items',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.kind is string && data.kind in ['products', 'systemStock']
+        && data.version is string && data.version.size() >= 1 && data.version.size() <= 64
+        && data.index is number && data.index >= 0
+        && data.totalChunks is number && data.totalChunks >= 1
+        && data.items is list && data.items.size() <= 1000 && (data.items.size() == 0 || data.items[0] is map)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidHistorySessionDoc(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'name', 'closedAt', 'closedBy',
+          'totalCapturesCount', 'totalPiecesCounted', 'totalCountedProducts',
+          'totalExactProducts', 'totalFaltantesProducts', 'totalSobrantesProducts',
+          'totalFaltantesPieces', 'totalSobrantesPieces', 'totalFaltantesValue',
+          'totalSobrantesValue', 'netFinancialImpact', 'accuracyRatePct',
+          'snapshotChunksCount', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'createdAtIso', 'closedAt', 'closedBy', 'notes',
+          'totalCapturesCount', 'totalPiecesCounted', 'totalCountedProducts',
+          'totalExactProducts', 'totalFaltantesProducts', 'totalSobrantesProducts',
+          'totalFaltantesPieces', 'totalSobrantesPieces', 'totalFaltantesValue',
+          'totalSobrantesValue', 'netFinancialImpact', 'accuracyRatePct',
+          'snapshotChunksCount', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && isOptString(data, 'createdAtIso', 64)
+        && data.closedAt is string && data.closedAt.size() >= 1 && data.closedAt.size() <= 64
+        && data.closedBy is string && data.closedBy.size() >= 1 && data.closedBy.size() <= 100
+        && isOptString(data, 'notes', 1000)
+        && data.totalCapturesCount is number
+        && data.totalPiecesCounted is number
+        && data.totalCountedProducts is number
+        && data.totalExactProducts is number
+        && data.totalFaltantesProducts is number
+        && data.totalSobrantesProducts is number
+        && data.totalFaltantesPieces is number
+        && data.totalSobrantesPieces is number
+        && data.totalFaltantesValue is number
+        && data.totalSobrantesValue is number
+        && data.netFinancialImpact is number
+        && data.accuracyRatePct is number
+        && data.snapshotChunksCount is number
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidHistorySessionChunkDoc(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'sessionId', 'kind', 'index', 'items',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'sessionId', 'kind', 'index', 'items',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId)
+        && isValidId(data.sessionId)
+        && data.kind is string && data.kind in ['captures', 'summaries', 'systemStock']
+        && data.index is number && data.index >= 0
+        && data.items is list && data.items.size() <= 1000 && (data.items.size() == 0 || data.items[0] is map)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // ==================== PRIVATE USER PROFILE ====================
+    match /users/{userId}/private/profile {
+      allow get: if isUserOwner(userId) && isValidId(userId);
+      allow create: if isUserOwner(userId)
+        && isValidId(userId)
+        && isValidUserPrivateProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isUserOwner(userId)
+        && isValidId(userId)
+        && isValidUserPrivateProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'counterName', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // ==================== WORKSPACES & REAL-TIME SYNC COLLECTIONS ====================
+    match /workspaces/{workspaceId} {
+      allow get: if isVerified()
+        && isValidId(workspaceId)
+        && (
+          (resource == null && workspaceId == ('ws_' + request.auth.uid))
+          || (resource != null && existing().ownerId == request.auth.uid)
+        );
+      allow list: if isVerified() && existing().ownerId == request.auth.uid;
+      allow create: if isVerified()
+        && isValidId(workspaceId)
+        && isValidInventoryWorkspace(incoming())
+        && incoming().id == workspaceId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(workspaceId)
+        && isValidInventoryWorkspace(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'activeZoneId', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['catalogVersion', 'catalogCount', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['stockVersion', 'stockCount', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['catalogVersion', 'catalogCount', 'stockVersion', 'stockCount', 'updatedAt'])
+        );
+      allow delete: if false;
+
+      match /zones/{zoneId} {
+        allow get: if isValidId(zoneId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(zoneId)
+          && isValidZoneDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == zoneId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(zoneId)
+          && isValidZoneDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'status', 'startTime', 'endTime', 'notes', 'updatedAt']);
+        allow delete: if isValidId(zoneId) && isWorkspaceOwner(workspaceId);
+      }
+
+      match /captures/{captureId} {
+        allow get: if isValidId(captureId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(captureId)
+          && isValidCaptureDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == captureId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(captureId)
+          && isValidCaptureDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['quantity', 'zoneId', 'zoneName', 'isRecount', 'counterName', 'updatedAt']);
+        allow delete: if isValidId(captureId) && isWorkspaceOwner(workspaceId);
+      }
+
+      match /unidentified/{itemId} {
+        allow get: if isValidId(itemId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(itemId)
+          && isValidUnidentifiedDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == itemId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(itemId)
+          && isValidUnidentifiedDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['note', 'quantity', 'resolvedCode', 'updatedAt']);
+        allow delete: if isValidId(itemId) && isWorkspaceOwner(workspaceId);
+      }
+
+      match /recounts/{recountId} {
+        allow get: if isValidId(recountId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(recountId)
+          && isValidRecountDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == recountId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(recountId)
+          && isValidRecountDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['reason', 'resolved', 'markedAt', 'updatedAt']);
+        allow delete: if isValidId(recountId) && isWorkspaceOwner(workspaceId);
+      }
+
+      match /catalogChunks/{chunkId} {
+        allow get: if isValidId(chunkId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(chunkId)
+          && isValidCatalogChunkDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == chunkId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(chunkId)
+          && isValidCatalogChunkDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['version', 'totalChunks', 'items', 'updatedAt']);
+        allow delete: if isValidId(chunkId) && isWorkspaceOwner(workspaceId);
+      }
+
+      match /historySessions/{sessionId} {
+        allow get: if isValidId(sessionId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(sessionId)
+          && isValidHistorySessionDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == sessionId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(sessionId)
+          && isValidHistorySessionDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'closedAt', 'closedBy', 'notes',
+            'totalCapturesCount', 'totalPiecesCounted', 'totalCountedProducts',
+            'totalExactProducts', 'totalFaltantesProducts', 'totalSobrantesProducts',
+            'totalFaltantesPieces', 'totalSobrantesPieces', 'totalFaltantesValue',
+            'totalSobrantesValue', 'netFinancialImpact', 'accuracyRatePct',
+            'snapshotChunksCount', 'updatedAt'
+          ]);
+        allow delete: if isValidId(sessionId) && isWorkspaceOwner(workspaceId);
+      }
+
+      match /historySessionChunks/{chunkId} {
+        allow get: if isValidId(chunkId) && isWorkspaceOwner(workspaceId);
+        allow list: if isVerified() && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(chunkId)
+          && isValidHistorySessionChunkDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().id == chunkId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(chunkId)
+          && isValidHistorySessionChunkDoc(incoming())
+          && isWorkspaceOwner(workspaceId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['items', 'updatedAt']);
+        allow delete: if isValidId(chunkId) && isWorkspaceOwner(workspaceId);
+      }
+    }
+  }
+}
